@@ -1,21 +1,35 @@
-# AgroMarket — Backend (Java)
+# AgroMarket — Backend (Java, Spring Boot)
 
-12 user story-дің бизнес-логикасы және 6 design pattern. Java 17+, Maven, JUnit 5.
-Келесі кезеңде Spring Boot-қа көшіріледі (сервистер `@Service`, тесттер өзгермейді).
+Java 17+, Spring Boot 3, Spring Data JPA, Flyway, PostgreSQL 16, Swagger (springdoc), JUnit 5.
 
 ## Іске қосу
 
-**VS Code арқылы** (Extension Pack for Java орнатылған болуы керек):
-- `src/main/java/kz/agromarket/Demo.java` файлын ашып, **Run** батырмасын басу — 12 user story-дің сценарийі;
-- сол жақтағы **Testing** (колба белгісі) бөлімінен барлық тесттерді іске қосу.
-
-**Терминал арқылы** (Maven орнатылған болса):
+**1. PostgreSQL керек.** Docker болса, бір командамен:
 
 ```bash
-cd backend
-mvn test                  # 40 unit-тест
-mvn compile exec:java     # 12 user story-дің демосы
+docker run -d --name agromarket-db -p 5432:5432 -e POSTGRES_DB=agromarket -e POSTGRES_USER=agromarket -e POSTGRES_PASSWORD=agromarket postgres:16
 ```
+
+Кейін бұл `docker-compose.yml` арқылы іске қосылады.
+
+**2. Backend.** VS Code-та `AgroMarketApplication.java` → **Run**. Іске қосылғанда Flyway кестелерді өзі жасайды.
+
+- Swagger: http://localhost:8080/swagger-ui.html
+- Health: http://localhost:8080/api/health
+
+**Тесттер мен демо** (дерекқорсыз жұмыс істейді):
+- VS Code → **Testing** → барлық тесттер;
+- `Demo.java` → **Run** — 12 user story-дің консольдық сценарийі.
+
+## Қабаттар
+
+```
+Controller (REST, DTO)  →  Service (бизнес-логика, паттерндер)  →  Repository (JPA)  →  PostgreSQL
+```
+
+- `config/DomainConfig.java` — сервистерді Spring DI-контейнеріне тіркеу
+- `common/web/GlobalExceptionHandler.java` — барлық қателер бірыңғай JSON форматында (`ApiError`)
+- `src/main/resources/db/migration/` — Flyway миграциялары
 
 ## User story → код
 
