@@ -1,0 +1,53 @@
+# =====================================================================
+# AgroMarket CI — әр Pull Request пен main-ге push кезінде іске қосылады.
+#   1. backend: linter (Checkstyle) + сборка + барлық тесттер (mvn verify)
+#   2. docker:  Docker образы сәтті жиналатынын тексеру
+# Екеуі де жасыл болмаса, PR-ды біріктіруге болмайды (main қорғалған).
+# =====================================================================
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — lint, build, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Кодты жүктеу
+        uses: actions/checkout@v4
+
+      - name: Java 17 орнату
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Checkstyle + сборка + тесттер
+        run: mvn -B verify
+
+      - name: Тест есептерін сақтау
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: backend/target/surefire-reports/
+
+  docker:
+    name: Docker образын жинау
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - name: Кодты жүктеу
+        uses: actions/checkout@v4
+
+      - name: Backend образын жинау
+        run: docker build -t agromarket-backend ./backend

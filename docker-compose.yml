@@ -1,0 +1,71 @@
+# =====================================================================
+# AgroMarket — бүкіл жүйені бір командамен іске қосу:
+#   docker compose up --build
+#
+#   Backend:  http://localhost:8080/api/health
+#   Swagger:  http://localhost:8080/swagger-ui.html
+#   MinIO:    http://localhost:9001 (консоль)
+#
+# Құпиясөздер .env файлынан алынады (.env.example-ді .env деп көшіріңіз).
+# .env болмаса, төмендегі әдепкі мәндер қолданылады.
+# =====================================================================
+
+services:
+
+  db:
+    image: postgres:16
+    container_name: agromarket-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agromarket}
+      POSTGRES_USER: ${POSTGRES_USER:-agromarket}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agromarket}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agromarket} -d ${POSTGRES_DB:-agromarket}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    # minio/minio Docker Hub-тан алынып тасталды, сондықтан Chainguard образы
+    image: chainguard/minio:latest
+    container_name: agromarket-minio
+    user: "0:0"   # Chainguard образы 65532 пайдаланушысымен іске қосылады; volume-ға жазу құқығы үшін
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-agromarket}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-agromarket123}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # веб-консоль
+    volumes:
+      - minio-data:/data
+
+  backend:
+    build: ./backend
+    container_name: agromarket-backend
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-agromarket}
+      DB_USER: ${POSTGRES_USER:-agromarket}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-agromarket}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy   # дерекқор дайын болғанша күтеді
+      minio:
+        condition: service_started
+
+  # frontend:                        # Нұрболаттың React каркасы дайын болғанда қосылады
+  #   build: ./frontend
+  #   ports:
+  #     - "3000:80"
+  #   depends_on:
+  #     - backend
+
+volumes:
+  db-data:
+  minio-data:
