@@ -30,6 +30,12 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  servlet:
+    multipart:
+      # US-01: құжат пен фото 5 МБ-тан аспауы керек (әдепкі шек — 1 МБ)
+      max-file-size: 5MB
+      max-request-size: 6MB
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -44,3 +50,15 @@ agromarket:
   payment:
     # Карта төлемінің провайдері. Ауыстыру үшін OrdersService-ті өзгерту керек емес.
     card-provider: STRIPE
+  jwt:
+    # Production-да міндетті түрде JWT_SECRET орта айнымалысы арқылы беріледі
+    secret: ${JWT_SECRET:agromarket-dev-secret-change-me-at-least-32-bytes}
+    ttl-minutes: 60
+  storage:
+    # MinIO мекенжайы. Бос болса, файлдар жадта сақталады (қайта іске қосқанда жоғалады)
+    endpoint: ${MINIO_ENDPOINT:}
+    access-key: ${MINIO_ACCESS_KEY:agromarket}
+    secret-key: ${MINIO_SECRET_KEY:agromarket123}
+    bucket: ${MINIO_BUCKET:agromarket}
+  # Бос дерекқорда демо пайдаланушылар мен өнімдерді жасау (DataSeeder)
+  seed-demo-data: ${SEED_DEMO_DATA:true}
