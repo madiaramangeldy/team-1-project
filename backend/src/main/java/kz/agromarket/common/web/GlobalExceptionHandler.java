@@ -9,10 +9,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Барлық контроллерлердің қателерін бір жерде ұстап, бірыңғай JSON форматына айналдырады.
@@ -42,10 +47,45 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    /** JSON бұзық немесе мән қате түрде (мысалы, role: "ADMIN") — 400 */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException e, HttpServletRequest request) {
+        ApiError body = ApiError.of("BAD_REQUEST", "Сұрау денесі дұрыс емес (JSON немесе мән форматы)", 400,
+                request.getRequestURI());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    /** URL параметрі қате түрде (мысалы, page=abc) — 400 */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException e, HttpServletRequest request) {
+        ApiError body = ApiError.of("BAD_REQUEST", "Параметр дұрыс емес: " + e.getName(), 400, request.getRequestURI());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    /** Жоқ мекенжай (мысалы, браузер сұрайтын /favicon.ico) — 404, логқа қате ретінде жазылмайды */
+    /** application.yml-дағы 5 МБ шегінен асқан файл */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleTooLarge(MaxUploadSizeExceededException e, HttpServletRequest request) {
+        ApiError body = ApiError.of("VALIDATION", "Файл көлемі 5 МБ-тан аспауы керек", 400, request.getRequestURI());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiError> handleNoFile(MissingServletRequestPartException e, HttpServletRequest request) {
+        ApiError body = ApiError.of("VALIDATION", "Файл таңдалмаған (file өрісі)", 400, request.getRequestURI());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(NoResourceFoundException e, HttpServletRequest request) {
+        ApiError body = ApiError.of("NOT_FOUND", "Мұндай мекенжай жоқ", 404, request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
     /** Күтпеген қате — пайдаланушыға ішкі мәліметтерді көрсетпейміз, тек логқа жазамыз */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception e, HttpServletRequest request) {
-        log.error("Күтпеген қате: {}", request.getRequestURI(), e);
+        log.error("Unexpected error at {}", request.getRequestURI(), e);
         ApiError body = ApiError.of("INTERNAL_ERROR", "Ішкі қате орын алды", 500, request.getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
